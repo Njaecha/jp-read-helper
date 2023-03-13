@@ -20,13 +20,20 @@ def post_process(text):
     text = jaconv.h2z(text, ascii=True, digit=True)
     return text
 
-def infer(image):
+def infer(image, deepL, google):
     image = image.convert('L').convert('RGB')
     pixel_values = feature_extractor(image, return_tensors="pt").pixel_values
     ouput = model.generate(pixel_values)[0]
     text = tokenizer.decode(ouput, skip_special_tokens=True)
     text = post_process(text)
-    return (text, romanise(text), translate(text, "deepl"), translate(text, "google"))
+    romaji = romanise(text)
+    deepLText = "DeepL translation is turned off"
+    if (deepL):
+        deepLText = translate(text, "deepl")
+    googleText = "Google translation is truned off"
+    if (google):
+        googleText = translate(text, "google")
+    return (text, romaji, deepLText, googleText)
 
 def romanise(text):
     c = cutlet.Cutlet()
@@ -44,7 +51,10 @@ def translate(text, translator):
 
 iface = gr.Interface(
     fn=infer,
-    inputs=[gr.components.Image(label="Input", type="pil")],
+    inputs=[
+        gr.components.Image(label="Input", type="pil"),
+        gr.components.Checkbox(True, label="Translate with DeepL"),
+        gr.components.Checkbox(True, label="Translate with Google")],
     outputs= [
         gr.components.Text(label="Original Text"),
         gr.components.Text(label="Romaji"), 
