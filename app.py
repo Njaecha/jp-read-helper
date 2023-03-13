@@ -6,6 +6,9 @@ import jaconv
 import cutlet
 import translators as ts
 from requests.exceptions import HTTPError
+from PIL import Image as PILImage
+import pytesseract
+
 
 #load model
 model_path = "model/"
@@ -20,12 +23,15 @@ def post_process(text):
     text = jaconv.h2z(text, ascii=True, digit=True)
     return text
 
-def infer(image, deepL, google):
+def JPOCR(image):
     image = image.convert('L').convert('RGB')
     pixel_values = feature_extractor(image, return_tensors="pt").pixel_values
     ouput = model.generate(pixel_values)[0]
     text = tokenizer.decode(ouput, skip_special_tokens=True)
-    text = post_process(text)
+    return post_process(text)
+
+def process(image, deepL, google):
+    text = JPOCR(image)
     romaji = romanise(text)
     deepLText = "DeepL translation is turned off"
     if (deepL):
@@ -47,22 +53,24 @@ def translate(text, translator):
     except HTTPError as e:
         print(f"An HTTPError occoured while translating with {translator}:\n   {e}")
         return e
-        
 
-iface = gr.Interface(
-    fn=infer,
-    inputs=[
-        gr.components.Image(label="Input", type="pil"),
-        gr.components.Checkbox(True, label="Translate with DeepL"),
-        gr.components.Checkbox(True, label="Translate with Google")],
-    outputs= [
-        gr.components.Text(label="Original Text"),
-        gr.components.Text(label="Romaji"), 
-        gr.components.Text(label="DeepL Translation"),
-        gr.components.Text(label="Google Translation")],
-    title="Optical Character Recognition and Translation Suggestions",
-    description="Load image, use image edit to select the region you want to process, submit",
-   # article= "Author: <a href=\"https://huggingface.co/vumichien\">Vu Minh Chien</a>. ",
-    allow_flagging='never'
-)
-iface.launch(enable_queue=True)
+with gr.Blocks(title="Optical Character Recognition and Translation Suggestions", css="custom-style.css", ) as UI:
+    gr.Markdown("# Optical Character Recognition and Translation Suggestions", elem_id="title-text")
+    
+    with gr.Row():
+        with gr.Column():
+            image = gr.Image(label="Input", type="pil", elem_id="input-img")
+            deepL = gr.Checkbox(True, label="Translate with DeepL")
+            google = gr.Checkbox(True, label="Translate with Google")
+            btn = gr.Button("Analyse")
+        with gr.Column():
+            org = gr.Text(label="Original Text")
+            romaji = gr.Text(label="Romaji")
+            deepLText = gr.Text(label="DeepL Translation")
+            googleText = gr.Text(label="Google Translation")
+
+    btn.click(process
+, inputs=[image, deepL, google], outputs=[org, romaji, deepLText, googleText])
+
+if __name__ == "__main__":
+    UI.launch()

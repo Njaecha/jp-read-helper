@@ -1,0 +1,14 @@
+#title-text {
+    text-align: center;
+}
+
+#input-img {
+    margin: auto;
+    width: fit-content;
+    padding: 0 10% 0 10%;
+}
+
+#input-img > .fixed-height {
+    height: 100%;
+    width: 100%;
+}
