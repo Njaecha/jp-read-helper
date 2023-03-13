@@ -32,16 +32,19 @@ def JPOCR(image):
     text = tokenizer.decode(ouput, skip_special_tokens=True)
     return post_process(text)
 
-def process(image, deepL, google):
+def process(image):
     text = JPOCR(image)
     romaji = romanise(text)
+    return (text, romaji)
+
+def trans(text, deepL, google):
     deepLText = "DeepL translation is turned off"
     if (deepL):
         deepLText = translate(text, "deepl")
     googleText = "Google translation is truned off"
     if (google):
         googleText = translate(text, "google")
-    return (text, romaji, deepLText, googleText)
+    return (deepLText, googleText)
 
 def romanise(text):
     c = cutlet.Cutlet()
@@ -143,13 +146,15 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
     with gr.Row():
         with gr.Column():
             image = gr.Image(label="Input", type="pil", elem_id="input-img")
+            restoreBtn = gr.Button("Restore", elem_id="restore-btn")
             deepL = gr.Checkbox(True, label="Translate with DeepL")
             google = gr.Checkbox(True, label="Translate with Google")
             with gr.Row():
-                restoreBtn = gr.Button("Restore")
-                btn = gr.Button("Analyse")
+                analyseBtn = gr.Button("Analyse")
+                translateBtn = gr.Button("Translate")
+
         with gr.Column():
-            org = gr.Text(label="Original Text", interactive=False)
+            org = gr.Text(label="Original Text", interactive=True)
             romaji = gr.Text(label="Romaji", interactive=False)
             deepLText = gr.Text(label="DeepL Translation", interactive=False)
             googleText = gr.Text(label="Google Translation", interactive=False)
@@ -161,7 +166,10 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
                     textIndex = gr.Text(value="1", label="Text index", interactive=True, max_lines=1)
                     saveBtn = gr.Button("Save Result")
 
-    btn.click(process, inputs=[image, deepL, google], outputs=[org, romaji, deepLText, googleText])
+    analyseBtn.click(process, inputs=[image], outputs=[org, romaji])
+    translateBtn.click(trans, inputs=[org, deepL, google], outputs=[deepLText, googleText])
+
+    org.change(romanise, inputs=[org], outputs=[romaji])
 
     image.change(saveImg, inputs=[image, sImage, isCleared], outputs=[sImage, isCleared])
 

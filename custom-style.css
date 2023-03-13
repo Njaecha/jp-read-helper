@@ -16,3 +16,9 @@
 #dir-load-btn {
     max-width: 10%;
 }
+
+#restore-btn {
+    max-width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+}
