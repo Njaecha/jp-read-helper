@@ -56,20 +56,20 @@ def translate(text, translator):
         print(f"An HTTPError occoured while translating with {translator}:\n   {e}")
         return e
 
-def saveAnalysis(org, romaji, deepL, googleT, directory, filename, textIndex):
+def saveAnalysis(org, romaji, deepL, googleT, transT, directory, filename, textIndex):
     section = f"""
-    == {textIndex} ====================
-    Original: {org}
-    --
-    Romaji: {romaji}
-    --
-    DeepL: {deepL}
-    --
-    Google: {googleT}
-    --
-    Translation: 
-    ==============================\n\n
-    """
+== {textIndex} ====================
+Original: {org}
+--
+Romaji: {romaji}
+--
+DeepL: {deepL}
+--
+Google: {googleT}
+--
+Translation: {transT}
+==============================\n
+"""
     if not path.exists(directory):
         mkdir(directory)
 
@@ -149,15 +149,16 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
                 restoreBtn = gr.Button("Restore")
                 btn = gr.Button("Analyse")
         with gr.Column():
-            org = gr.Text(label="Original Text")
-            romaji = gr.Text(label="Romaji")
-            deepLText = gr.Text(label="DeepL Translation")
-            googleText = gr.Text(label="Google Translation")
+            org = gr.Text(label="Original Text", interactive=False)
+            romaji = gr.Text(label="Romaji", interactive=False)
+            deepLText = gr.Text(label="DeepL Translation", interactive=False)
+            googleText = gr.Text(label="Google Translation", interactive=False)
+            transText = gr.Text(label="Actual Translation", interactive=True)
             with gr.Accordion(label="Save results", open=True):
-                outputDir = gr.Textbox(value="./output", label="Save Directory", interactive=True, max_lines=1)
+                outputDir = gr.Text(value="./output", label="Save Directory", interactive=True, max_lines=1)
                 with gr.Row():
-                    filename = gr.Textbox(value="1.translation.txt", label="Filename", interactive=True,max_lines=1)
-                    textIndex = gr.Textbox(value="1", label="Text index",interactive=True,max_lines=1)
+                    filename = gr.Text(value="1.translation.txt", label="Filename", interactive=True, max_lines=1)
+                    textIndex = gr.Text(value="1", label="Text index", interactive=True, max_lines=1)
                     saveBtn = gr.Button("Save Result")
 
     btn.click(process, inputs=[image, deepL, google], outputs=[org, romaji, deepLText, googleText])
@@ -166,7 +167,7 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
 
     restoreBtn.click(restoreImg, inputs=[sImage], outputs=[image])
 
-    saveBtn.click(saveAnalysis, inputs=[org, romaji, deepLText, googleText, outputDir, filename, textIndex])
+    saveBtn.click(saveAnalysis, inputs=[org, romaji, deepLText, googleText, transText, outputDir, filename, textIndex])
 
 if __name__ == "__main__":
     UI.launch()
