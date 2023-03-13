@@ -12,3 +12,7 @@
     height: 100%;
     width: 100%;
 }
+
+#dir-load-btn {
+    max-width: 10%;
+}
