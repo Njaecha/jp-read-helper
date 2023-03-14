@@ -7,3 +7,4 @@ torch
 cutlet
 translators
 gradio
+deepl

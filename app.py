@@ -120,7 +120,7 @@ def saveAnalysis(org, romaji, deepL, googleT, transT, directory, filename, textI
     fp = os.path.join(directory, filename)
     with open(fp, "a", encoding="utf-8") as file:
         file.write(section)
-        print("File was appended")
+        print(f"File [{fp}] was appended")
 
 with gr.Blocks(title="Optical Character Recognition and Translation Suggestions", css="custom-style.css", ) as UI:
     sImage = gr.State(None)
@@ -191,7 +191,7 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
                 restoreBtn = gr.Button("Restore", elem_id="restore-btn")
                 with gr.Row():
                     deepL = gr.Checkbox(True, label="Translate with DeepL")
-                    deepLAPI = gr.Checkbox(False, label="Use official API")
+                    deepLAPI = gr.Checkbox(False, label="Use official API (requires key)")
                 google = gr.Checkbox(True, label="Translate with Google")
                 with gr.Row():
                     analyseBtn = gr.Button("Analyse")
@@ -209,6 +209,17 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
                         filename = gr.Text(value="1.translation.txt", label="Filename", interactive=True, max_lines=1)
                         textIndex = gr.Text(value="1", label="Text index", interactive=True, max_lines=1)
                         saveBtn = gr.Button("Save Result")
+                    savedMessage = gr.Markdown("", visible=False)
+
+                    def showMessage(directory, filename, textIndex):
+                        return gr.update(value=f"Saved to `{os.path.join(directory, filename)}` with index `{textIndex}`", visible=True)
+                    def hideMessage():
+                        return gr.update(visible=False)
+                    
+                    saveBtn.click(showMessage, inputs=[outputDir, filename, textIndex], outputs=[savedMessage])
+                    comps = [outputDir, filename, textIndex]
+                    for component in comps:
+                        component.change(hideMessage, outputs=[savedMessage])
 
         analyseBtn.click(process, inputs=[image], outputs=[org, romaji])
         translateBtn.click(trans, inputs=[org, deepL, deepLAPI, google], outputs=[deepLText, googleText])
@@ -222,10 +233,20 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
         saveBtn.click(saveAnalysis, inputs=[org, romaji, deepLText, googleText, transText, outputDir, filename, textIndex])
     with gr.Tab("Settings") as settingsTab:
         saveSettingsBtn = gr.Button("Save Settings")
+        savedMessage = gr.Markdown("Setting have been saved!", visible=False)
         deeplKey = gr.Text(value=loadSettings()["deepl-api-key"], label="DeepL API Key", interactive=True)
-        saveSchema = gr.Text(value=loadSettings()["save-schema"], label="Save Schema", interactive=True)
-        
+        saveSchema = gr.Text(value=loadSettings()["save-schema"], label="Save Schema", interactive=True, max_lines=20)
+
+        def showMessage():
+            return gr.update(visible=True)
+
+        def hideMessage():
+            return gr.update(visible=False)
+
         saveSettingsBtn.click(saveSettings, inputs=[deeplKey, saveSchema])
+        saveSettingsBtn.click(showMessage, outputs=[savedMessage])
+        deeplKey.change(hideMessage, outputs=[savedMessage])
+        saveSchema.change(hideMessage, outputs=[savedMessage])
 
 if __name__ == "__main__":
     UI.launch()
