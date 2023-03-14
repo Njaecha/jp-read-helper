@@ -5,6 +5,7 @@ import re
 import jaconv
 import cutlet
 import translators as ts
+import deepl
 from requests.exceptions import HTTPError
 from PIL import Image as PILImage
 import os
@@ -51,10 +52,13 @@ def process(image):
     romaji = romanise(text)
     return (text, romaji)
 
-def trans(text, deepL, google):
+def trans(text, deepL, useDeepLAPI, google):
     deepLText = "DeepL translation is turned off"
     if (deepL):
-        deepLText = translate(text, "deepl")
+        if useDeepLAPI:
+            deepLText = translateDeepL(text)
+        else:
+            deepLText = translate(text, "deepl")
     googleText = "Google translation is truned off"
     if (google):
         googleText = translate(text, "google")
@@ -71,6 +75,19 @@ def translate(text, translator):
         return translation
     except HTTPError as e:
         print(f"An HTTPError occoured while translating with {translator}:\n   {e}")
+        return e
+    
+def translateDeepL(text):
+    auth_key = loadSettings()["deepl-api-key"]
+    if auth_key == None or auth_key == "":
+        return "API Key empty"
+    translator: deepl.Translator = deepl.Translator(auth_key)
+    try: 
+        translated =  translator.translate_text(text, source_lang="JA", target_lang="EN-US")
+        print(f"Translated using deepL (API):\n   Input: {text}\n   Output: {translated}")
+        return translated
+    except Exception as e:
+        print(f"An exception was thrown when trying to translate with deepL: {e}")
         return e
 
 def saveSettings(deepl, saveSchema):
@@ -172,7 +189,9 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
             with gr.Column():
                 image = gr.Image(label="Input", type="pil", elem_id="input-img")
                 restoreBtn = gr.Button("Restore", elem_id="restore-btn")
-                deepL = gr.Checkbox(True, label="Translate with DeepL")
+                with gr.Row():
+                    deepL = gr.Checkbox(True, label="Translate with DeepL")
+                    deepLAPI = gr.Checkbox(False, label="Use official API")
                 google = gr.Checkbox(True, label="Translate with Google")
                 with gr.Row():
                     analyseBtn = gr.Button("Analyse")
@@ -192,7 +211,7 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
                         saveBtn = gr.Button("Save Result")
 
         analyseBtn.click(process, inputs=[image], outputs=[org, romaji])
-        translateBtn.click(trans, inputs=[org, deepL, google], outputs=[deepLText, googleText])
+        translateBtn.click(trans, inputs=[org, deepL, deepLAPI, google], outputs=[deepLText, googleText])
 
         org.change(romanise, inputs=[org], outputs=[romaji])
 
