@@ -7,10 +7,24 @@ import cutlet
 import translators as ts
 from requests.exceptions import HTTPError
 from PIL import Image as PILImage
-import pytesseract
-from os import path, listdir, system, mkdir
+import os
+import json
 
 SUPPORTED_FORMATS = ["dds", "png", "jpg", "jpeg", "webp", "bmp", "gif", "tga"] # incomplete list but im lazy
+
+DEFAULT_SAVE_SCHEMA = """
+== {textIndex} ====================
+Original: {org}
+--
+Romaji: {romaji}
+--
+DeepL: {deepL}
+--
+Google: {googleT}
+--
+Translation: {transT}
+==============================
+"""
 
 #load model
 model_path = "model/"
@@ -59,24 +73,34 @@ def translate(text, translator):
         print(f"An HTTPError occoured while translating with {translator}:\n   {e}")
         return e
 
-def saveAnalysis(org, romaji, deepL, googleT, transT, directory, filename, textIndex):
-    section = f"""
-== {textIndex} ====================
-Original: {org}
---
-Romaji: {romaji}
---
-DeepL: {deepL}
---
-Google: {googleT}
---
-Translation: {transT}
-==============================\n
-"""
-    if not path.exists(directory):
-        mkdir(directory)
+def saveSettings(deepl, saveSchema):
+    with open("settings.json", "w") as f:
+        settings = {
+            "deepl-api-key": deepl,
+            "save-schema": saveSchema
+        }
+        json.dump(settings, f, indent=4)
 
-    fp = path.join(directory, filename)
+def loadSettings():
+    if not os.path.exists("settings.json"):
+        saveSettings("<api-key-here>", DEFAULT_SAVE_SCHEMA)
+    with open("settings.json", "r") as f:
+        return json.load(f)
+
+
+def saveAnalysis(org, romaji, deepL, googleT, transT, directory, filename, textIndex):
+    section = "\n"+str(loadSettings()["save-schema"])+"\n"
+    section = section.replace("{textIndex}", textIndex)
+    section = section.replace("{org}", org)
+    section = section.replace("{romaji}", romaji)
+    section = section.replace("{deepL}", deepL)
+    section = section.replace("{googleT}", googleT)
+    section = section.replace("{transT}", transT)
+
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+
+    fp = os.path.join(directory, filename)
     with open(fp, "a", encoding="utf-8") as file:
         file.write(section)
         print("File was appended")
@@ -106,76 +130,83 @@ with gr.Blocks(title="Optical Character Recognition and Translation Suggestions"
     def restoreImg(saved):
         return saved
 
-    # with gr.Accordion(label="Directoryloader", open=False):
-    #     with gr.Row():
-    #         loadDir = gr.Textbox(label="Directory Path")
-    #         loadDirBtn = gr.Button("Load", elem_id="dir-load-btn")
-    #     with gr.Row(visible=True) as r:
+    with gr.Tab(label="Main"):
+        # with gr.Accordion(label="Directoryloader", open=False):
+        #     with gr.Row():
+        #         loadDir = gr.Textbox(label="Directory Path")
+        #         loadDirBtn = gr.Button("Load", elem_id="dir-load-btn")
+        #     with gr.Row(visible=True) as r:
 
-    #         def loadDirectory(dirpath):
-    #             global FILE_LIST
-    #             global DIRECORY_LOADED
-    #             if path.exists(dirpath):
-    #                 print("load dir")
-    #                 FILE_LIST.clear()
-    #                 for file in listdir(dirpath):
-    #                     name, extension = path.splitext(file)
-    #                     if extension in SUPPORTED_FORMATS:
-    #                         FILE_LIST.append(file)
-    #                 DIRECORY_LOADED = True
-    #                 print(DIRECORY_LOADED)
-    #                 r.visible = True
-    #                 UI.update()
-    
-    #         def changeCurrentFileIndex(by: int):
-    #             global CURRENT_FILE_INDEX
-    #             if by < 0 and CURRENT_FILE_INDEX > 0:
-    #                 CURRENT_FILE_INDEX += by
-    #             elif by > 0 and CURRENT_FILE_INDEX < len(FILE_LIST):
-    #                 CURRENT_FILE_INDEX += by
-    #             print(CURRENT_FILE_INDEX)
+        #         def loadDirectory(dirpath):
+        #             global FILE_LIST
+        #             global DIRECORY_LOADED
+        #             if path.exists(dirpath):
+        #                 print("load dir")
+        #                 FILE_LIST.clear()
+        #                 for file in listdir(dirpath):
+        #                     name, extension = path.splitext(file)
+        #                     if extension in SUPPORTED_FORMATS:
+        #                         FILE_LIST.append(file)
+        #                 DIRECORY_LOADED = True
+        #                 print(DIRECORY_LOADED)
+        #                 r.visible = True
+        #                 UI.update()
+        
+        #         def changeCurrentFileIndex(by: int):
+        #             global CURRENT_FILE_INDEX
+        #             if by < 0 and CURRENT_FILE_INDEX > 0:
+        #                 CURRENT_FILE_INDEX += by
+        #             elif by > 0 and CURRENT_FILE_INDEX < len(FILE_LIST):
+        #                 CURRENT_FILE_INDEX += by
+        #             print(CURRENT_FILE_INDEX)
 
-    #         prev = gr.Button("<< Previous")
-    #         prev.click(changeCurrentFileIndex(-1))
-    #         loadFile = gr.Button(FILE_LIST[CURRENT_FILE_INDEX])
-    #         next = gr.Button("Next >>")
-    #         next.click(changeCurrentFileIndex(1))
-    
-    #     loadDirBtn.click(loadDirectory, inputs=[loadDir])
-    
-    with gr.Row():
-        with gr.Column():
-            image = gr.Image(label="Input", type="pil", elem_id="input-img")
-            restoreBtn = gr.Button("Restore", elem_id="restore-btn")
-            deepL = gr.Checkbox(True, label="Translate with DeepL")
-            google = gr.Checkbox(True, label="Translate with Google")
-            with gr.Row():
-                analyseBtn = gr.Button("Analyse")
-                translateBtn = gr.Button("Translate")
-
-        with gr.Column():
-            org = gr.Text(label="Original Text", interactive=True)
-            romaji = gr.Text(label="Romaji", interactive=False)
-            deepLText = gr.Text(label="DeepL Translation", interactive=False)
-            googleText = gr.Text(label="Google Translation", interactive=False)
-            transText = gr.Text(label="Actual Translation", interactive=True)
-            with gr.Accordion(label="Save results", open=True):
-                outputDir = gr.Text(value="./output", label="Save Directory", interactive=True, max_lines=1)
+        #         prev = gr.Button("<< Previous")
+        #         prev.click(changeCurrentFileIndex(-1))
+        #         loadFile = gr.Button(FILE_LIST[CURRENT_FILE_INDEX])
+        #         next = gr.Button("Next >>")
+        #         next.click(changeCurrentFileIndex(1))
+        
+        #     loadDirBtn.click(loadDirectory, inputs=[loadDir])
+        
+        with gr.Row():
+            with gr.Column():
+                image = gr.Image(label="Input", type="pil", elem_id="input-img")
+                restoreBtn = gr.Button("Restore", elem_id="restore-btn")
+                deepL = gr.Checkbox(True, label="Translate with DeepL")
+                google = gr.Checkbox(True, label="Translate with Google")
                 with gr.Row():
-                    filename = gr.Text(value="1.translation.txt", label="Filename", interactive=True, max_lines=1)
-                    textIndex = gr.Text(value="1", label="Text index", interactive=True, max_lines=1)
-                    saveBtn = gr.Button("Save Result")
+                    analyseBtn = gr.Button("Analyse")
+                    translateBtn = gr.Button("Translate")
 
-    analyseBtn.click(process, inputs=[image], outputs=[org, romaji])
-    translateBtn.click(trans, inputs=[org, deepL, google], outputs=[deepLText, googleText])
+            with gr.Column():
+                org = gr.Text(label="Original Text", interactive=True)
+                romaji = gr.Text(label="Romaji", interactive=False)
+                deepLText = gr.Text(label="DeepL Translation", interactive=False)
+                googleText = gr.Text(label="Google Translation", interactive=False)
+                transText = gr.Text(label="Actual Translation", interactive=True)
+                with gr.Accordion(label="Save results", open=True):
+                    outputDir = gr.Text(value="./output", label="Save Directory", interactive=True, max_lines=1)
+                    with gr.Row():
+                        filename = gr.Text(value="1.translation.txt", label="Filename", interactive=True, max_lines=1)
+                        textIndex = gr.Text(value="1", label="Text index", interactive=True, max_lines=1)
+                        saveBtn = gr.Button("Save Result")
 
-    org.change(romanise, inputs=[org], outputs=[romaji])
+        analyseBtn.click(process, inputs=[image], outputs=[org, romaji])
+        translateBtn.click(trans, inputs=[org, deepL, google], outputs=[deepLText, googleText])
 
-    image.change(saveImg, inputs=[image, sImage, isCleared], outputs=[sImage, isCleared])
+        org.change(romanise, inputs=[org], outputs=[romaji])
 
-    restoreBtn.click(restoreImg, inputs=[sImage], outputs=[image])
+        image.change(saveImg, inputs=[image, sImage, isCleared], outputs=[sImage, isCleared])
 
-    saveBtn.click(saveAnalysis, inputs=[org, romaji, deepLText, googleText, transText, outputDir, filename, textIndex])
+        restoreBtn.click(restoreImg, inputs=[sImage], outputs=[image])
+
+        saveBtn.click(saveAnalysis, inputs=[org, romaji, deepLText, googleText, transText, outputDir, filename, textIndex])
+    with gr.Tab("Settings") as settingsTab:
+        saveSettingsBtn = gr.Button("Save Settings")
+        deeplKey = gr.Text(value=loadSettings()["deepl-api-key"], label="DeepL API Key", interactive=True)
+        saveSchema = gr.Text(value=loadSettings()["save-schema"], label="Save Schema", interactive=True)
+        
+        saveSettingsBtn.click(saveSettings, inputs=[deeplKey, saveSchema])
 
 if __name__ == "__main__":
     UI.launch()
