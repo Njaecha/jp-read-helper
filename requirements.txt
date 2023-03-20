@@ -8,3 +8,4 @@ cutlet
 translators
 gradio
 deepl
+numpy
